@@ -6,6 +6,12 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { Context, Next } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
+import { createMiddleware } from "hono/factory";
+
+type Variables = {
+  session_id: string;
+  session_data: SessionData;
+};
 
 const SESSION_EXPIRE = 60 * 60 * 24;
 const SESSION_TABLE_NAME = process.env.SESSION_TABLE_NAME;
@@ -75,11 +81,13 @@ const generateAndSetSessionId = (c: Context) => {
   return sessionId;
 };
 
-export const sessionMiddleware = async (c: Context, next: Next) => {
-  const sessionId = getCookie(c, "session_id") || generateAndSetSessionId(c);
-  const session_data = new SessionData(sessionId);
-  await session_data.preload();
-  c.set("session_id", sessionId);
-  c.set("session_data", session_data);
-  await next();
-};
+export const sessionMiddleware = createMiddleware<{ Variables: Variables }>(
+  async (c: Context, next: Next) => {
+    const sessionId = getCookie(c, "session_id") || generateAndSetSessionId(c);
+    const session_data = new SessionData(sessionId);
+    await session_data.preload();
+    c.set("session_id", sessionId);
+    c.set("session_data", session_data);
+    await next();
+  }
+);
